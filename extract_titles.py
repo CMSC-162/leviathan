@@ -10,39 +10,48 @@ class Stage(object):
     pattern = r"""(<title>(.+?)</title>)|(<id>(.+?)</id>)|(<text.*?>(.+?)</text>)|(<redirect title="(.+?)" />)"""
     rxp = re.compile(pattern, re.DOTALL)
     offset = 0
-    prev_offset = 0
     
     page_title = None
     page_id = None
     while True:
-      match = rxp.search(buffer, offset)
-      if match is None:
+      offset = buffer.find('<', offset)
+      
+      if offset == -1:
         break
       
-      offset = match.end()
-      if offset <= prev_offset:
-        raise Exception("Going backwards in the string!")
-      prev_offset = offset
+      end_of_name = min(buffer.find(' ', offset, offset + 100), buffer.find('>', offset, offset + 100))
       
-      self.offset_in_string = 0
+      tag_name = buffer[offset + 1 : end_of_name]
+      end_offset = min(buffer.find('</', offset, offset + 1000)
+      
+      self.offset_in_string = offset
       self.length_of_string = len(buffer)
       
-      if match.group(0).startswith('<title'):
-        page_title = match.group(2).decode('utf-8')
-      elif match.group(0).startswith('<id'):
+      if tag_name == 'title':
+        
+        page_title = buffer[end_of_name : end_offset]
+        
+      elif tag_name == 'id':
+        
         if page_id is None:
-          page_id = int(match.group(4))
-      elif match.group(0).startswith('<redirect'):
-        self.extract_redirect(page_title, page_id, match.group(8).decode('utf-8'))
+          page_id = int(buffer[end_of_name : end_offset])
+          
+      elif tag_name == 'redirect':
+        
+        self.extract_redirect(page_title, page_id, buffer[offset + 17 : end_offset - 3])
         page_title = None
         page_id = None
-      elif match.group(0).startswith('<text'):
+        
+      elif tag_name == 'text':
+        
         if page_title is None or page_id is None:
           continue
-        text = match.group(6).decode('utf-8')
-        self.extract_page(page_title, page_id, match.group(6).decode('utf-8'))
+        text = buffer[offset + 1 : end_offset].decode('utf-8')
+        self.extract_page(page_title, page_id, text)
         page_title = None
         page_id = None
+        
+      offset = end_offset
   
   def extract_page(self, title, id, links):
     pass
