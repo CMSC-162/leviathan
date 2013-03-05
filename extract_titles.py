@@ -10,6 +10,7 @@ class Stage(object):
     pattern = r"""(<title>(.+?)</title>)|(<id>(.+?)</id>)|(<text.*?>(.+?)</text>)|(<redirect title="(.+?)" />)"""
     rxp = re.compile(pattern, re.DOTALL)
     offset = 0
+    prev_offset = 0
     
     page_title = None
     page_id = None
@@ -17,7 +18,15 @@ class Stage(object):
       match = rxp.search(buffer, offset)
       if match is None:
         break
+      
       offset = match.end()
+      if offset <= prev_offset:
+        raise Exception("Going backwards in the string!")
+      prev_offset = offset
+      
+      self.offset_in_string = 0
+      self.length_of_string = len(buffer)
+      
       if match.group(0).startswith('<title'):
         page_title = match.group(2).decode('utf-8')
       elif match.group(0).startswith('<id'):
@@ -48,6 +57,10 @@ class CounterStage(Stage):
   
   def extract_page(self, title, id, description):
     self.total_pages += 1
+    
+    if self.total_pages % 1000 == 0:
+      print "%-7s %-12s %-10s / %-10s (%0.1f%%)" % (self.total_pages, self.total_redirects + self.total_pages,
+        self.offset_in_string, self.length_of_string, self.offset_in_string * 100.0 / self.length_of_string)
   
   def extract_redirect(self, title, id, destination):
     self.total_redirects += 1
