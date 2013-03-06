@@ -67,6 +67,8 @@ class Stage(handler.ContentHandler):
 
 class CounterStage(Stage):
   def __init__(self):
+    Stage.__init__.__call__(self)
+    
     self.total_pages = 0
     self.total_redirects = 0
   
@@ -83,6 +85,8 @@ class CounterStage(Stage):
 
 class BinaryPackStage(Stage):
   def __init__(self, titles=None, result_file=None):
+    Stage.__init__.__call__(self)
+    
     self.offset = 0
     self.actually_pack = (titles is not None)
     self.titles = titles or [ ]
