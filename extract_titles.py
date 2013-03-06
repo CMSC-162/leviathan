@@ -42,6 +42,11 @@ class Stage(handler.ContentHandler):
     elif self.stack == ['mediawiki', 'page', 'text']:
       
       if self.id is not None and self.title is not None:
+        links = [ ]
+        
+        for link in re.findall(r'\[\[.+?(|.+?)\]\]', ''.join(self.content)):
+          links.append(link.group(0))
+        
         self.extract_page(self.title, self.id, ''.join(self.content))
         self.id = self.title = None
     
@@ -65,7 +70,7 @@ class CounterStage(Stage):
     self.total_pages = 0
     self.total_redirects = 0
   
-  def extract_page(self, title, id, description):
+  def extract_page(self, title, id, links):
     self.total_pages += 1
     
     if self.total_pages % 1000 == 0:
