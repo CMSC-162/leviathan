@@ -4,54 +4,55 @@ import re
 import sys
 import HTMLParser
 import resource
+from xml.sax import handler
+from xml import sax
 
-class Stage(object):
-  def process(self, buffer):
-    pattern = r"""(<title>(.+?)</title>)|(<id>(.+?)</id>)|(<text.*?>(.+?)</text>)|(<redirect title="(.+?)" />)"""
-    rxp = re.compile(pattern, re.DOTALL)
-    offset = 0
+class Stage(handler.ContentHandler):
+  def __init__(self):
+    self.stack = [ ]
+    self.capturing_input = False
+    self.redirect = None
+    self.title = None
+    self.id = None
+    self.content = [ ]
+  
+  def startElement(self, name, attrs):
+    self.stack.append(name)
+    self.content = None
     
-    page_title = None
-    page_id = None
-    while True:
-      offset = buffer.find('<', offset)
+    if (self.stack == ['mediawiki', 'page', 'title'] or
+        self.stack == ['mediawiki', 'page', 'id']):
+      self.content = [ ]
+  
+  def endElement(self, name):
+    if self.stack == ['mediawiki', 'page', 'title']:
+    
+      self.title = ''.join(self.content)
+    
+    elif self.stack == ['mediawiki', 'page', 'id']:
+    
+      self.id = int(''.join(self.content))
+    
+    elif self.stack == ['mediawiki', 'page', 'redirect']:
+    
+      if self.id is not None and self.title is not None:
+        self.extract_redirect(self.title, self.id, ''.join(self.content))
+        self.id = self.title = None
       
-      if offset == -1:
-        break
+    elif self.stack == ['mediawiki', 'page', 'text']:
       
-      end_of_name = min(buffer.find(' ', offset, offset + 100), buffer.find('>', offset, offset + 100))
-      
-      tag_name = buffer[offset + 1 : end_of_name]
-      end_offset = min(buffer.find('</', offset, offset + 1000)
-      
-      self.offset_in_string = offset
-      self.length_of_string = len(buffer)
-      
-      if tag_name == 'title':
-        
-        page_title = buffer[end_of_name : end_offset]
-        
-      elif tag_name == 'id':
-        
-        if page_id is None:
-          page_id = int(buffer[end_of_name : end_offset])
-          
-      elif tag_name == 'redirect':
-        
-        self.extract_redirect(page_title, page_id, buffer[offset + 17 : end_offset - 3])
-        page_title = None
-        page_id = None
-        
-      elif tag_name == 'text':
-        
-        if page_title is None or page_id is None:
-          continue
-        text = buffer[offset + 1 : end_offset].decode('utf-8')
-        self.extract_page(page_title, page_id, text)
-        page_title = None
-        page_id = None
-        
-      offset = end_offset
+      if self.id is not None and self.title is not None:
+        self.extract_page(self.title, self.id, ''.join(self.content))
+        self.id = self.title = None
+    
+    self.stack.pop()
+  
+  def characters(self, characters):
+    if self.capturing_input:
+      self.content.append(characters)
+  
+  def process(self, buffer):
+    return sax.parseString(buffer, self)
   
   def extract_page(self, title, id, links):
     pass
@@ -73,6 +74,7 @@ class CounterStage(Stage):
   
   def extract_redirect(self, title, id, destination):
     self.total_redirects += 1
+    
 
 class BinaryPackStage(Stage):
   def __init__(self, titles=None, result_file=None):
