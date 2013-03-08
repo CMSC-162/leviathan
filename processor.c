@@ -6,9 +6,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #define ACTION_INIT 1
 #define ACTION_LINK 2
+#define ACTION_STATS 3
+#define ACTION_SIMULATION 4
 
 #define MAX_NUMBER_OF_ARTICLES (1 << 24)
 
@@ -31,12 +34,12 @@ int usage() {
 }
 
 int main(int argc, char ** argv) {
-  if (argc != 1)
+  if (argc == 1)
     return usage();
   
-  char * operation = argv[0];
+  char * operation = argv[1];
   bool incoming;
-  
+   
   if (strcmp(operation, "init") == 0) {
     if (argc != 3) return usage();
     
@@ -52,9 +55,9 @@ int main(int argc, char ** argv) {
     
     action = ACTION_LINK;
     
-    if (strcmp(argv[1], "in") == 0)
+    if (strcmp(argv[2], "in") == 0)
       incoming = true;
-    else if (strcmp(argv[1], "out") == 0)
+    else if (strcmp(argv[2], "out") == 0)
       incoming = false;
     else
       return usage();
@@ -62,8 +65,12 @@ int main(int argc, char ** argv) {
     if (strcmp(argv[3], "-") == 0) {
       input_file = stdin;
     } else {
-      input_file = fopen(argv[2], "r");
+      input_file = fopen(argv[3], "r");
     }
+  } else if (strcmp(argv[1], "stats") == 0) {
+    action = ACTION_STATS;
+  } else if (strcmp(argv[1], "simulate") == 0) {
+    action = ACTION_SIMULATION;
   } else {
     return usage();
   }
@@ -73,7 +80,7 @@ int main(int argc, char ** argv) {
   
   lseek(index_fd, MAX_NUMBER_OF_ARTICLES * sizeof(article), SEEK_SET);
   write(index_fd, "", 1);
-  lseek(index_fd, 0, SEEK_SET);
+  lseek(index_fd, 0, SEEK_END);
   
   article * articles = mmap(0, MAX_NUMBER_OF_ARTICLES * sizeof(article),
                                PROT_READ | PROT_WRITE, MAP_SHARED, index_fd, 0);
@@ -86,15 +93,15 @@ int main(int argc, char ** argv) {
     char title[1024]; // be very careful with this!
     
     while (fscanf(input_file, "%d", &page_id) != EOF) {
-      title = fgets(title, 1024, input_file);
+      fgetc(input_file);
+      fgets(title, 1024, input_file);
       
       uint32_t offset = lseek(data_fd, 0, SEEK_CUR);
        
       write(data_fd, title, sizeof(char) * (strlen(title) + 1));
-      num_links = 0;
       
       current_article++;
-      current_article->article_id = from;
+      current_article->article_id = page_id;
       current_article->title_offset = offset;
       
       current_article->outgoing_links = 0;
@@ -118,7 +125,9 @@ int main(int argc, char ** argv) {
           
           write(data_fd, links, sizeof(uint32_t) * num_links);
           
-          if (incoming) {
+          while ((++current_article)->article_id < from);
+ 
+          if (!incoming) {
             current_article->outgoing_links = num_links;
             current_article->outgoing_offset = offset;
           } else {
@@ -128,11 +137,7 @@ int main(int argc, char ** argv) {
           
           num_links = 0;
         }
-        
-        while (current_article->article_id < from) {
-          current_article++;
-        }
-        
+         
         last_article_id = from;
       };
       
@@ -150,7 +155,7 @@ int main(int argc, char ** argv) {
       
       write(data_fd, links, sizeof(uint32_t) * num_links);
       
-      if (incoming) {
+      if (!incoming) {
         current_article->outgoing_links = num_links;
         current_article->outgoing_offset = offset;
       } else {
@@ -166,8 +171,10 @@ int main(int argc, char ** argv) {
     uint32_t incoming_links, outgoing_links;
     uint32_t size_distribution[1024];
     
+    memset(size_distribution, '\0', sizeof(uint32_t) * 1024);
+      
     for (i = 0; i < MAX_NUMBER_OF_ARTICLES; i++) {
-      article * art = articles[i];
+      article * art = &articles[i];
       
       if (art->article_id != 0 || art->incoming_links != 0 ||
           art->outgoing_links != 0 || art->title_offset != 0) {
@@ -183,7 +190,7 @@ int main(int argc, char ** argv) {
       if (art->title_offset != 0)
         has_title++;
       
-      if (art->outgoing_links < 1024)
+      if (art->outgoing_links < 1024 && art->article_id != 0)
         size_distribution[art->outgoing_links]++;
       
       incoming_links += art->incoming_links;
@@ -194,12 +201,12 @@ int main(int argc, char ** argv) {
     printf("max_articles:   %12i\n", MAX_NUMBER_OF_ARTICLES);
     printf("total_articles: %12i (%0.1f%%)\n", has_anything, has_anything * 100.0 / MAX_NUMBER_OF_ARTICLES);
     printf("w/title:        %12i (%0.1f%%)\n", has_title, has_title * 100.0 / has_anything);
-    printf("w/id:           %12i (%0.1f%%)\n", has_id, has_title * 100.0 / has_anything);
-    printf("w/incoming:     %12i (%0.1f%%)\n", has_incoming, has_title * 100.0 / has_anything);
-    printf("w/outgoing:     %12i (%0.1f%%)\n", has_outgoing, has_title * 100.0 / has_anything);
+    printf("w/id:           %12i (%0.1f%%)\n", has_id, has_id * 100.0 / has_anything);
+    printf("w/incoming:     %12i (%0.1f%%)\n", has_incoming, has_incoming * 100.0 / has_anything);
+    printf("w/outgoing:     %12i (%0.1f%%)\n", has_outgoing, has_outgoing * 100.0 / has_anything);
     printf("\n");
     printf("# Statistics:\n");
-    printf("outgoing_links: %12i\n", incoming_links);
+    printf("incoming_links: %12i\n", incoming_links);
     printf("outgoing_links: %12i\n", outgoing_links);
     printf("\n");
     printf("# Averages:\n");
@@ -209,10 +216,10 @@ int main(int argc, char ** argv) {
     printf("# Outgoing Link Count Distribution:\n");
     
     for (i = 0; i < 1024; i++)
-      printf("ol=%-12i %12i", size_distribution[i]);
+      printf("ol=%-12i %12i\n", i, size_distribution[i]);
     
-  } else if (action == ACTION_SIMULATE) {
-    
+  } else if (action == ACTION_SIMULATION) {
+    printf("# Not implemented...\n");
   }
   
   
