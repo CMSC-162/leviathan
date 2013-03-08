@@ -39,7 +39,8 @@ int main(int argc, char ** argv) {
   
   char * operation = argv[1];
   bool incoming;
-   
+  int article_id;
+  
   if (strcmp(operation, "init") == 0) {
     if (argc != 3) return usage();
     
@@ -82,6 +83,13 @@ int main(int argc, char ** argv) {
     action = ACTION_STATS;
   } else if (strcmp(argv[1], "simulate") == 0) {
     action = ACTION_SIMULATION;
+  } else if (strcmp(argv[1], "inspect") == 0) {
+    action = ACTION_INSPECT;
+    
+    if (argc != 3)
+      return;
+    
+    article_id = atoi(argv[2]);
   } else {
     return usage();
   }
@@ -240,10 +248,32 @@ int main(int argc, char ** argv) {
     for (i = 0; i < 1024; i++)
       printf("ol=%-12i %12i\n", i, size_distribution[i]);
     
+  } else if (action == ACTION_INSPECT) {
+    
+    printf("# find articles with id=%i\n", article_id);
+    
+    for (int i = 0; i < MAX_NUMBER_OF_ARTICLES; i++) {
+      article * art = &articles[i];
+      
+      if (art->article_id != article_id) continue;
+      
+      printf("\n");
+      printf("article_id: %i\n", art->article_id);
+      
+      char buffer[1024];
+      
+      lseek(data_file, art->title_offset, SEEK_SET);
+      int offset = read(data_file, buffer, 1023);
+      buffer[offset] = '\0';
+      
+      printf("title: \"%s\" (%i)\n", buffer, art->title_offset);
+      printf("outgoing_links: %i\n", art->outgoing_links);
+      printf("incoming_links: %i\n", art->incoming_links);
+    }
+    
   } else if (action == ACTION_SIMULATION) {
     printf("# Not implemented...\n");
   }
-  
   
   munmap(articles, 1 << 24);
   
