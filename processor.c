@@ -49,6 +49,11 @@ int main(int argc, char ** argv) {
       input_file = stdin;
     } else {
       input_file = fopen(argv[2], "r");
+      
+      if (input_file < 0) {
+        fprintf(stderr, "%s: %s: %s\n", argv[0], argv[2], strerrror(errno));
+        exit(1);
+      }
     }
   } else if (strcmp(operation, "link") == 0) {
     if (argc != 4) return usage();
@@ -66,7 +71,13 @@ int main(int argc, char ** argv) {
       input_file = stdin;
     } else {
       input_file = fopen(argv[3], "r");
+      
+      if (input_file < 0) {
+        fprintf(stderr, "%s: %s: %s\n", argv[0], argv[3], strerrror(errno));
+        exit(1);
+      }
     }
+    
   } else if (strcmp(argv[1], "stats") == 0) {
     action = ACTION_STATS;
   } else if (strcmp(argv[1], "simulate") == 0) {
@@ -76,7 +87,18 @@ int main(int argc, char ** argv) {
   }
   
   int index_fd = open("./index_file", O_RDWR | O_CREAT, (mode_t)0600);
+  
+  if (index_fd < 0) {
+    fprintf(stderr, "%s: %s: %s\n", argv[0], "./index_file", strerrror(errno));
+    exit(1);
+  }
+
   int data_fd = open("./data_file", O_RDWR | O_CREAT, (mode_t)0600);
+  
+  if (data_fd < 0) {
+    fprintf(stderr, "%s: %s: %s\n", argv[0], "./index_file", strerrror(errno));
+    exit(1);
+  }
   
   lseek(index_fd, MAX_NUMBER_OF_ARTICLES * sizeof(article), SEEK_SET);
   write(index_fd, "", 1);
