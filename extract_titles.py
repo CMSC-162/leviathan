@@ -39,7 +39,7 @@ class Stage(handler.ContentHandler):
         self.extract_redirect(self.title, self.id, ''.join(self.content))
         self.id = self.title = None
       
-    elif self.stack == ['mediawiki', 'page', 'text']:
+    elif self.stack == ['mediawiki', 'page', 'revision', 'text']:
       
       if self.id is not None and self.title is not None:
         links = [ ]
@@ -81,7 +81,6 @@ class CounterStage(Stage):
   
   def extract_redirect(self, title, id, destination):
     self.total_redirects += 1
-    
 
 class BinaryPackStage(Stage):
   def __init__(self, titles=None, result_file=None):
