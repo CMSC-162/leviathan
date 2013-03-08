@@ -1,7 +1,6 @@
 DOWNLOAD_URL = http://download.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2
 WIKIPEDIA_BZ2_SOURCE = enwiki-latest-pages-articles.xml.bz2
 WIKIPEDIA_LARGE_FILE = enwiki-latest-pages-articles.xml
-PACKED_BFS_FILE = packed-link-graph.bin
 
 DEVELOPER_EMAIL_ADDRESS = open-source@fatlotus.com
 
@@ -11,7 +10,9 @@ help:
 	@echo \#
 
 build: $(WIKIPEDIA_LARGE_FILE)
-	python extract_titles.py $(WIKIPEDIA_LARGE_FILE) $(PACKED_BFS_FILE) | sendmail $(DEVELOPER_EMAIL_ADDRESS)
+	@echo \# 
+	@echo \# Err... this is still a work in progress, sorry.
+	@echo \# 
 
 $(WIKIPEDIA_BZ2_SOURCE):
 	wget http://download.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2
