@@ -183,8 +183,26 @@ int main(int argc, char ** argv) {
         links = realloc(links, sizeof(int) * links_capacity);
       };
       
-      num_links++;
-      links[num_links] = (uint32_t)to;
+      uint32_t left = 0, right = MAX_NUMBER_OF_ARTICLES;
+      uint32_t mid, found;
+      
+      while ((left + 1) < right) {
+        mid = (left + right) / 2;
+        
+        found = articles[mid]->article_id;
+        
+        if (found == 0) {
+          right = mid;
+        } else if (found < to) {
+          left = mid;
+        } else if (found > to) {
+          right = mid;  
+        } else {
+          num_links++;
+          links[num_links] = (uint32_t)to;
+          break;
+        };
+      };
     };
     
     if (last_article_id != 0) {
