@@ -7,13 +7,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #define ACTION_INIT 1
 #define ACTION_LINK 2
 #define ACTION_STATS 3
 #define ACTION_SIMULATION 4
+#define ACTION_INSPECT 5
 
 #define MAX_NUMBER_OF_ARTICLES (1 << 24)
+
+char * strerror(int);
 
 typedef struct {
   uint32_t article_id;
@@ -52,7 +56,7 @@ int main(int argc, char ** argv) {
       input_file = fopen(argv[2], "r");
       
       if (input_file < 0) {
-        fprintf(stderr, "%s: %s: %s\n", argv[0], argv[2], strerrror(errno));
+        fprintf(stderr, "%s: %s: %s\n", argv[0], argv[2], strerror(errno));
         exit(1);
       }
     }
@@ -74,7 +78,7 @@ int main(int argc, char ** argv) {
       input_file = fopen(argv[3], "r");
       
       if (input_file < 0) {
-        fprintf(stderr, "%s: %s: %s\n", argv[0], argv[3], strerrror(errno));
+        fprintf(stderr, "%s: %s: %s\n", argv[0], argv[3], strerror(errno));
         exit(1);
       }
     }
@@ -97,21 +101,23 @@ int main(int argc, char ** argv) {
   int index_fd = open("./index_file", O_RDWR | O_CREAT, (mode_t)0600);
   
   if (index_fd < 0) {
-    fprintf(stderr, "%s: %s: %s\n", argv[0], "./index_file", strerrror(errno));
+    fprintf(stderr, "%s: %s: %s\n", argv[0], "./index_file", strerror(errno));
     exit(1);
   }
 
   int data_fd = open("./data_file", O_RDWR | O_CREAT, (mode_t)0600);
   
   if (data_fd < 0) {
-    fprintf(stderr, "%s: %s: %s\n", argv[0], "./index_file", strerrror(errno));
+    fprintf(stderr, "%s: %s: %s\n", argv[0], "./index_file", strerror(errno));
     exit(1);
   }
   
   lseek(index_fd, MAX_NUMBER_OF_ARTICLES * sizeof(article), SEEK_SET);
   write(index_fd, "", 1);
   lseek(index_fd, 0, SEEK_END);
-  
+
+  lseek(data_fd, 0, SEEK_END);
+
   article * articles = mmap(0, MAX_NUMBER_OF_ARTICLES * sizeof(article),
                                PROT_READ | PROT_WRITE, MAP_SHARED, index_fd, 0);
   article * current_article = articles - 1;
@@ -125,7 +131,8 @@ int main(int argc, char ** argv) {
     while (fscanf(input_file, "%d", &page_id) != EOF) {
       fgetc(input_file);
       fgets(title, 1024, input_file);
-      
+      title[strlen(title) - 1] = '\0'; 
+       
       uint32_t offset = lseek(data_fd, 0, SEEK_CUR);
        
       write(data_fd, title, sizeof(char) * (strlen(title) + 1));
@@ -250,9 +257,11 @@ int main(int argc, char ** argv) {
     
   } else if (action == ACTION_INSPECT) {
     
+    int i;
+    
     printf("# find articles with id=%i\n", article_id);
     
-    for (int i = 0; i < MAX_NUMBER_OF_ARTICLES; i++) {
+    for (i = 0; i < MAX_NUMBER_OF_ARTICLES; i++) {
       article * art = &articles[i];
       
       if (art->article_id != article_id) continue;
@@ -262,11 +271,11 @@ int main(int argc, char ** argv) {
       
       char buffer[1024];
       
-      lseek(data_file, art->title_offset, SEEK_SET);
-      int offset = read(data_file, buffer, 1023);
+      lseek(data_fd, art->title_offset, SEEK_SET);
+      int offset = read(data_fd, buffer, 1023);
       buffer[offset] = '\0';
       
-      printf("title: \"%s\" (%i)\n", buffer, art->title_offset);
+      printf("title: \"%s\" (%i; %i)\n", buffer, art->title_offset, strlen(buffer));
       printf("outgoing_links: %i\n", art->outgoing_links);
       printf("incoming_links: %i\n", art->incoming_links);
     }
