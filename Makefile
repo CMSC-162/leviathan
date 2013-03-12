@@ -9,10 +9,14 @@ help:
 	@echo \# To build this project, run \"make build\" on a suitably large machine.
 	@echo \#
 
-build: $(WIKIPEDIA_LARGE_FILE)
-	@echo \# 
-	@echo \# Err... this is still a work in progress, sorry.
-	@echo \# 
+build:
+	rm -rf data_file index_file
+	./processor init titles.txt
+	./processor link in incoming.txt
+	./processor link out outgoing.txt
+
+processor: processor.c
+	cc -g processor.c -o processor
 
 $(WIKIPEDIA_BZ2_SOURCE):
 	wget http://download.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2

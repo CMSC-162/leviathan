@@ -131,7 +131,7 @@ int main(int argc, char ** argv) {
     while (fscanf(input_file, "%d", &page_id) != EOF) {
       fgetc(input_file);
       fgets(title, 1024, input_file);
-      title[strlen(title) - 1] = '\0'; 
+      title[strlen(title) - 2] = '\0'; 
        
       uint32_t offset = lseek(data_fd, 0, SEEK_CUR);
        
@@ -162,8 +162,6 @@ int main(int argc, char ** argv) {
           
           write(data_fd, links, sizeof(uint32_t) * num_links);
           
-          while ((++current_article)->article_id < from);
- 
           if (!incoming) {
             current_article->outgoing_links = num_links;
             current_article->outgoing_offset = offset;
@@ -176,6 +174,9 @@ int main(int argc, char ** argv) {
         }
          
         last_article_id = from;
+        
+        while ((++current_article)->article_id < from);
+
       };
       
       if (num_links + 1 >= links_capacity) {
@@ -189,7 +190,7 @@ int main(int argc, char ** argv) {
       while ((left + 1) < right) {
         mid = (left + right) / 2;
         
-        found = articles[mid]->article_id;
+        found = articles[mid].article_id;
         
         if (found == 0) {
           right = mid;
@@ -296,6 +297,9 @@ int main(int argc, char ** argv) {
       printf("title: \"%s\" (%i; %i)\n", buffer, art->title_offset, strlen(buffer));
       printf("outgoing_links: %i\n", art->outgoing_links);
       printf("incoming_links: %i\n", art->incoming_links);
+  
+      uint32_t adj = 0;
+      
     }
     
   } else if (action == ACTION_SIMULATION) {
