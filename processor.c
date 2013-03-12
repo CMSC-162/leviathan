@@ -170,7 +170,7 @@ int main(int argc, char ** argv) {
           } else {
             current_article->incoming_links = num_links;
             current_article->incoming_offset = offset;
-          }
+          };
           
           num_links = 0;
         }
@@ -189,7 +189,7 @@ int main(int argc, char ** argv) {
       while ((left + 1) < right) {
         mid = (left + right) / 2;
         
-        found = articles[mid]->article_id;
+        found = articles[mid].article_id;
         
         if (found == 0) {
           right = mid;
@@ -275,7 +275,7 @@ int main(int argc, char ** argv) {
     
   } else if (action == ACTION_INSPECT) {
     
-    int i;
+    int i, offset;
     
     printf("# find articles with id=%i\n", article_id);
     
@@ -290,17 +290,48 @@ int main(int argc, char ** argv) {
       char buffer[1024];
       
       lseek(data_fd, art->title_offset, SEEK_SET);
-      int offset = read(data_fd, buffer, 1023);
-      buffer[offset] = '\0';
+      offset = read(data_fd, buffer, 1024);
       
       printf("title: \"%s\" (%i; %i)\n", buffer, art->title_offset, strlen(buffer));
       printf("outgoing_links: %i\n", art->outgoing_links);
       printf("incoming_links: %i\n", art->incoming_links);
-    }
+      
+      uint32_t * offsets = malloc(sizeof(uint32_t) * art->outgoing_links);
+      
+      lseek(data_fd, art->outgoing_offset, SEEK_SET);
+      read(data_fd, offsets, art->outgoing_links * sizeof(uint32_t));
+      
+      printf("\n\noutgoing:\n");
+      
+      for (i = 0; i < art->outgoing_links; i++) {
+        article * peer = articles[offsets[i]];
+        lseek(data_fd, peer->title_offset, SEEK_SET);
+        
+        offset = read(data_fd, buffer, 1024);
+        printf("- id: %i\n", peer->article_id);
+        printf("  title: %s\n\n", buffer);
+      }
+      
+      offsets = malloc(sizeof(uint32_t) * art->incoming_links);
+      
+      lseek(data_fd, art->incoming_offset, SEEK_SET);
+      read(data_fd, offsets, art->incoming_links * sizeof(uint32_t));
+      
+      printf("\n\nincoming:\n");
+      
+      for (i = 0; i < art->incoming_links; i++) {
+        article * peer = articles[offsets[i]];
+        lseek(data_fd, peer->title_offset, SEEK_SET);
+        
+        offset = read(data_fd, buffer, 1024);
+        printf("- id: %i\n", peer->article_id);
+        printf("  title: %s\n\n", buffer);
+      };
+    };
     
   } else if (action == ACTION_SIMULATION) {
     printf("# Not implemented...\n");
-  }
+  };
   
   munmap(articles, 1 << 24);
   
