@@ -156,6 +156,8 @@ int main(int argc, char ** argv) {
     uint32_t last_article_id = 0;
     
     while (fscanf(input_file, "%d %d", &from, &to) != EOF) {
+      if (from == 0 || to == 0) continue;
+      
       if (from != last_article_id) {
         if (last_article_id != 0) {
           uint32_t offset = lseek(data_fd, 0, SEEK_CUR);
@@ -310,7 +312,7 @@ int main(int argc, char ** argv) {
         offset = read(data_fd, buffer, 1024);
         printf("- id: %i\n", peer->article_id);
         printf("  offset: %i\n", offsets[i]);
-        // printf("  title: %s\n\n", buffer);
+        printf("  title: %s\n\n", buffer);
       }
       
       offsets = malloc(sizeof(uint32_t) * art->incoming_links);
@@ -318,8 +320,7 @@ int main(int argc, char ** argv) {
       lseek(data_fd, art->incoming_offset, SEEK_SET);
       read(data_fd, offsets, art->incoming_links * sizeof(uint32_t));
       
-     /*
-      printf("\n\nincoming:\n");
+      printf("\n\nincoming (%i):\n", art->incoming_offset);
       
       for (i = 0; i < art->incoming_links; i++) {
         article * peer = &articles[offsets[i]];
@@ -327,9 +328,9 @@ int main(int argc, char ** argv) {
         
         offset = read(data_fd, buffer, 1024);
         printf("- id: %i\n", peer->article_id);
+        printf("  offset: %i\n", offsets[i]);
         printf("  title: %s\n\n", buffer);
-      };
- */
+      }
     };
   } else if (action == ACTION_SIMULATION) {
     printf("# Not implemented...\n");
