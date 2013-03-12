@@ -200,7 +200,7 @@ int main(int argc, char ** argv) {
           right = mid;  
         } else {
           num_links++;
-          links[num_links] = (uint32_t)to;
+          links[num_links] = (uint32_t)mid;
           break;
         };
       };
@@ -293,24 +293,25 @@ int main(int argc, char ** argv) {
       lseek(data_fd, art->title_offset, SEEK_SET);
       offset = read(data_fd, buffer, 1024);
       
-      printf("title: \"%s\" (%i; %i)\n", buffer, art->title_offset, strlen(buffer));
-      printf("outgoing_links: %i\n", art->outgoing_links);
-      printf("incoming_links: %i\n", art->incoming_links);
+      printf("title: \"%s\" (%d; %d)\n", buffer, art->title_offset, (int)strlen(buffer));
+      printf("outgoing_links: %d\n", art->outgoing_links);
+      printf("incoming_links: %d\n", art->incoming_links);
       
       uint32_t * offsets = malloc(sizeof(uint32_t) * art->outgoing_links);
       
       lseek(data_fd, art->outgoing_offset, SEEK_SET);
       read(data_fd, offsets, art->outgoing_links * sizeof(uint32_t));
       
-      printf("\n\noutgoing:\n");
+      printf("\n\noutgoing (%i):\n", art->outgoing_offset);
       
       for (i = 0; i < art->outgoing_links; i++) {
-        article * peer = articles[offsets[i]];
+        article * peer = &articles[offsets[i]];
         lseek(data_fd, peer->title_offset, SEEK_SET);
         
         offset = read(data_fd, buffer, 1024);
         printf("- id: %i\n", peer->article_id);
-        printf("  title: %s\n\n", buffer);
+        printf("  offset: %i\n", offsets[i]);
+        // printf("  title: %s\n\n", buffer);
       }
       
       offsets = malloc(sizeof(uint32_t) * art->incoming_links);
@@ -318,16 +319,19 @@ int main(int argc, char ** argv) {
       lseek(data_fd, art->incoming_offset, SEEK_SET);
       read(data_fd, offsets, art->incoming_links * sizeof(uint32_t));
       
+     /*
       printf("\n\nincoming:\n");
       
       for (i = 0; i < art->incoming_links; i++) {
-        article * peer = articles[offsets[i]];
+        article * peer = &articles[offsets[i]];
         lseek(data_fd, peer->title_offset, SEEK_SET);
         
         offset = read(data_fd, buffer, 1024);
         printf("- id: %i\n", peer->article_id);
         printf("  title: %s\n\n", buffer);
       };
+ */
+    };
   } else if (action == ACTION_SIMULATION) {
     printf("# Not implemented...\n");
   };
