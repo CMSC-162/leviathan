@@ -199,8 +199,7 @@ int main(int argc, char ** argv) {
         } else if (found > to) {
           right = mid;  
         } else {
-          num_links++;
-          links[num_links] = (uint32_t)mid;
+          links[num_links++] = (uint32_t)mid;
           break;
         };
       };
