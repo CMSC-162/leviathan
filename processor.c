@@ -44,7 +44,8 @@ void array_append(array_t * array, uint32_t value) {
   array->size++;
   
   if (array->size >= array->capacity) {
-    while (array->capacity < sz) array->capacity <<= 1;
+    if (array->capacity == 0) array->capacity = 1;
+    while (array->capacity < array->size) array->capacity <<= 1;
     
     array->values = realloc(array->values, sizeof(uint32_t) * array->capacity);
   };
@@ -60,82 +61,36 @@ void array_set_difference(array_t * include, array_t * exclude) {
   int i, j;
   
   array_t result;
-  result->capacity = 0;
-  result->size = 0;
-  result->values = NULL;
+  result.capacity = 0;
+  result.size = 0;
+  result.values = NULL;
   
-  qsort(include-values, include->size, sizeof(uint32_t), comparator);
-  qsort(exclude-values, exclude->size, sizeof(uint32_t), comparator);
+  qsort(include->values, include->size, sizeof(uint32_t), array_comparator);
+  qsort(exclude->values, exclude->size, sizeof(uint32_t), array_comparator);
   
-  for (i = 0, j = 0; i < include->size && j < exclude->size; ) {
+  for (i = 0, j = 0; i < include->size; ) {
     if (j >= exclude->size) {
-      append_array(result, include[i]);
+      array_append(&result, include->values[i]);
+      i++;
       continue;
     }
     
-    if (include[i] < exclude[j]) { j++; continue; }
-    if (include[i] == exclude[j]) { i++, j++; continue; }
+    if (include->values[i] < exclude->values[j]) { j++; continue; }
+    if (include->values[i] == exclude->values[j]) { i++, j++; continue; }
     
-    append_array(result, include[i]);
+    array_append(&result, include->values[i]);
+    i++, j++;
   };
   
   free(include->values);
   
-  include->size = result->size;
-  include->capacity = result->capacity;
-  include->values = result->values;
+  include->size = result.size;
+  include->capacity = result.capacity;
+  include->values = result.values;
 };
 
-void bfs(int ** from, int ** to) {
-  
-  array_t a, b;
-  int i;
-  
-  memset(a, '\0', sizeof(array_t));
-  memset(b, '\0', sizeof(array_t));
-  
-  array_append(a, 34);
-  array_append(a, 42);
-  array_append(a, 56);
-  array_append(a, 94);
-  
-  array_append(b, 20);
-  array_append(b, 56);
-  array_append(b, 42);
-  array_append(b, 97);
-  
-  array_set_difference(a, b);
-  
-  printf("A: ");
-  for (i = 0; i < a->size; i++) {
-    printf("%i ", a->values[i]);
-  }
-  printf("\n");
-  
-  printf("B: ");
-  for (i = 0; i < b->size; i++) {
-    printf("%i ", b->values[i]);
-  }
-  printf("\n");
-  
-  return;
-  
-  int cntFrom = 0,
-      cntTo = 0,
-      sz = 0;
-  
-  while (from[cntFrom] != 0)
-    cntFrom++;
-  
-  while (to[cntTo] != 0)
-    cntTo++;
-  
-  for (sz = 0; cntFrom < (1l << sz); sz++);
-  for (sz = 0; cntTo   < (1l << sz); sz++);
-  
-  int scratch = 0;
-  
-  int * new_destinations = malloc(sizeof(from));
+void bfs(array_t * from, array_t * to, bool out) {
+  /* WIP */
 };
 
 
@@ -147,7 +102,7 @@ int search_by_title(char * title) {
     article * art = &articles[i];
     
     lseek(data_fd, art->title_offset, SEEK_SET);
-    int offset = fread(data_fd, found_title, 1023);
+    int offset = read(data_fd, found_title, 1023);
     found_title[offset] = '\0';
     
     for (j = 0, k = 0; title[j] && found_title[k]; ) {
@@ -491,7 +446,7 @@ int main(int argc, char ** argv) {
     };
   } else if (action == ACTION_BFS) {
     
-    printf("# Performing breadth first search...");
+    printf("# Performing breadth first search...\n");
     bfs(NULL, NULL);
     
   } else if (action == ACTION_SIMULATION) {
