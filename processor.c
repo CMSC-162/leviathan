@@ -8,12 +8,15 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <ctype.h>
+#include <stdbool.h>
 
 #define ACTION_INIT 1
 #define ACTION_LINK 2
 #define ACTION_STATS 3
 #define ACTION_SIMULATION 4
 #define ACTION_INSPECT 5
+#define ACTION_BFS 6
 
 #define MAX_NUMBER_OF_ARTICLES (1 << 24)
 
@@ -32,8 +35,140 @@ FILE * input_file;
 int action;
 article * articles;
 
+typedef struct {
+  size_t capacity, size;
+  uint32_t * values;
+} array_t;
+
+void array_append(array_t * array, uint32_t value) {
+  array->size++;
+  
+  if (array->size >= array->capacity) {
+    while (array->capacity < sz) array->capacity <<= 1;
+    
+    array->values = realloc(array->values, sizeof(uint32_t) * array->capacity);
+  };
+  
+  array->values[array->size - 1] = value;
+};
+
+inline int array_comparator(const void * a, const void * b) {
+  return *(int*)a - *(int*)b;
+};
+
+void array_set_difference(array_t * include, array_t * exclude) {
+  int i, j;
+  
+  array_t result;
+  result->capacity = 0;
+  result->size = 0;
+  result->values = NULL;
+  
+  qsort(include-values, include->size, sizeof(uint32_t), comparator);
+  qsort(exclude-values, exclude->size, sizeof(uint32_t), comparator);
+  
+  for (i = 0, j = 0; i < include->size && j < exclude->size; ) {
+    if (j >= exclude->size) {
+      append_array(result, include[i]);
+      continue;
+    }
+    
+    if (include[i] < exclude[j]) { j++; continue; }
+    if (include[i] == exclude[j]) { i++, j++; continue; }
+    
+    append_array(result, include[i]);
+  };
+  
+  free(include->values);
+  
+  include->size = result->size;
+  include->capacity = result->capacity;
+  include->values = result->values;
+};
+
+void bfs(int ** from, int ** to) {
+  
+  array_t a, b;
+  int i;
+  
+  memset(a, '\0', sizeof(array_t));
+  memset(b, '\0', sizeof(array_t));
+  
+  array_append(a, 34);
+  array_append(a, 42);
+  array_append(a, 56);
+  array_append(a, 94);
+  
+  array_append(b, 20);
+  array_append(b, 56);
+  array_append(b, 42);
+  array_append(b, 97);
+  
+  array_set_difference(a, b);
+  
+  printf("A: ");
+  for (i = 0; i < a->size; i++) {
+    printf("%i ", a->values[i]);
+  }
+  printf("\n");
+  
+  printf("B: ");
+  for (i = 0; i < b->size; i++) {
+    printf("%i ", b->values[i]);
+  }
+  printf("\n");
+  
+  return;
+  
+  int cntFrom = 0,
+      cntTo = 0,
+      sz = 0;
+  
+  while (from[cntFrom] != 0)
+    cntFrom++;
+  
+  while (to[cntTo] != 0)
+    cntTo++;
+  
+  for (sz = 0; cntFrom < (1l << sz); sz++);
+  for (sz = 0; cntTo   < (1l << sz); sz++);
+  
+  int scratch = 0;
+  
+  int * new_destinations = malloc(sizeof(from));
+};
+
+
+int search_by_title(char * title) {
+  int i, j, k;
+  char found_title[1024];
+  
+  for (i = 0; i < MAX_NUMBER_OF_ARTICLES; i++) {
+    article * art = &articles[i];
+    
+    lseek(data_fd, art->title_offset, SEEK_SET);
+    int offset = fread(data_fd, found_title, 1023);
+    found_title[offset] = '\0';
+    
+    for (j = 0, k = 0; title[j] && found_title[k]; ) {
+      if (!isalpha(title[j])) { j++; continue; }
+      if (!isalpha(found_title[k])) { k++; continue; }
+      
+      if (tolower(title[j]) != tolower(found_title[k]))
+        break; 
+    };
+    
+    bool matched = (title[j] == 0);
+    
+    if (matched)
+      return art->article_id;
+  };
+  
+  return -1;
+};
+
 int usage() {
-  printf("Usage: processor { init ./titles.txt | link { in | out } ./links.txt | stats | simulate }\n");
+  printf("Usage: processor { init ./titles.txt | link { in | out } ./links.txt | stats | inspect ID | bfs FROM TO | simulate }\n");
   return 1;
 }
 
@@ -85,15 +220,27 @@ int main(int argc, char ** argv) {
     
   } else if (strcmp(argv[1], "stats") == 0) {
     action = ACTION_STATS;
+    if (argc != 2) return usage();
+    
   } else if (strcmp(argv[1], "simulate") == 0) {
     action = ACTION_SIMULATION;
+    if (argc != 2) return usage();
+    
   } else if (strcmp(argv[1], "inspect") == 0) {
     action = ACTION_INSPECT;
     
     if (argc != 3)
-      return;
+      return usage();
     
     article_id = atoi(argv[2]);
+  } else if (strcmp(argv[1], "bfs") == 0) {
+    
+    action = ACTION_BFS;
+    
+    if (argc != 4)
+      return usage();
+    
+    
   } else {
     return usage();
   }
@@ -226,10 +373,12 @@ int main(int argc, char ** argv) {
     uint32_t i;
     uint32_t has_title, has_id, has_incoming, has_outgoing, has_anything;
     uint32_t incoming_links, outgoing_links;
-    uint32_t size_distribution[1024];
+    uint32_t in_size_distribution[10240];
+    uint32_t out_size_distribution[10240];
     
-    memset(size_distribution, '\0', sizeof(uint32_t) * 1024);
-      
+    memset(in_size_distribution, '\0', sizeof(uint32_t) * 10240);
+    memset(out_size_distribution, '\0', sizeof(uint32_t) * 10240);
+    
     for (i = 0; i < MAX_NUMBER_OF_ARTICLES; i++) {
       article * art = &articles[i];
       
@@ -247,8 +396,11 @@ int main(int argc, char ** argv) {
       if (art->title_offset != 0)
         has_title++;
       
-      if (art->outgoing_links < 1024 && art->article_id != 0)
-        size_distribution[art->outgoing_links]++;
+      if (art->outgoing_links < 10240 && art->article_id != 0)
+        out_size_distribution[art->outgoing_links]++;
+      
+      if (art->incoming_links < 10240 && art->article_id != 0)
+        in_size_distribution[art->incoming_links]++;
       
       incoming_links += art->incoming_links;
       outgoing_links += art->outgoing_links;
@@ -272,8 +424,13 @@ int main(int argc, char ** argv) {
     printf("\n");
     printf("# Outgoing Link Count Distribution:\n");
     
-    for (i = 0; i < 1024; i++)
-      printf("ol=%-12i %12i\n", i, size_distribution[i]);
+    for (i = 0; i < 10240; i++)
+      printf("ol %-12i %12i\n", i, out_size_distribution[i]);
+    
+    printf("# Incoming Link Count Distribution:\n");
+    
+    for (i = 0; i < 10240; i++)
+      printf("ol %-12i %12i\n", i, in_size_distribution[i]);
     
   } else if (action == ACTION_INSPECT) {
     
@@ -332,6 +489,11 @@ int main(int argc, char ** argv) {
         printf("  title: %s\n\n", buffer);
       }
     };
+  } else if (action == ACTION_BFS) {
+    
+    printf("# Performing breadth first search...");
+    bfs(NULL, NULL);
+    
   } else if (action == ACTION_SIMULATION) {
     printf("# Not implemented...\n");
   };
